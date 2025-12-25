@@ -90,8 +90,9 @@ def run_pubmed_search(
     :return: The full text of the top matching article.
     """
     # Print search query
+    article_type = "abstracts" if abstract_only else "full text"
     print(
-        f'Searching PubMed Central for {num_articles} articles ({'abstracts' if abstract_only else 'full text'}) with query: "{query}"'
+        f'Searching PubMed Central for {num_articles} articles ({article_type}) with query: "{query}"'
     )
 
     # Perform PubMed Central search for query to get PMC ID
@@ -118,7 +119,8 @@ def run_pubmed_search(
         if title is None:
             continue
 
-        texts.append(f"PMCID = {pmcid}\n\nTitle = {title}\n\n{'\n\n'.join(content)}")
+        newline = "\n\n"
+        texts.append(f"PMCID = {pmcid}{newline}Title = {title}{newline}{newline.join(content)}")
         titles.append(title)
         pmcids.append(pmcid)
 

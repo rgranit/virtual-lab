@@ -18,28 +18,24 @@ Principal Investigator, please provide your response to the agenda.
 
 ## Principal Investigator
 
-To effectively tackle the challenge of developing antibodies or nanobodies for the newest variant of the SARS-CoV-2 spike protein, I will assemble a team of experts with complementary skills in computational biology, virology, and antibody engineering. Here is the proposed team:
+Agent(
+    title="Computational Antibody Engineer",
+    expertise="structure-based antibody and nanobody design, protein–protein interaction modeling, and deep generative models for antibody sequence optimization",
+    goal="develop and implement the in silico design and optimization pipeline for broadly neutralizing antibodies/nanobodies targeting conserved regions of SARS-CoV-2 spike, including the newest and prior variants",
+    role="lead structural modeling (AlphaFold/RoseTTAFold, docking), epitope/paratope mapping, generative sequence design (e.g., protein language models, diffusion models), and in silico developability/affinity screening",
+)
 
-1. **Agent(
-    title="Computational Biologist",
-    expertise="computational modeling and bioinformatics",
-    goal="develop models to predict antibody and nanobody interactions with the SARS-CoV-2 spike protein",
-    role="utilize machine learning techniques to identify potential binding sites and design optimized sequences"
-)**
+Agent(
+    title="Viral Immunologist",
+    expertise="coronavirus immunology, B-cell epitope mapping, escape mutation pathways, and mechanisms of broadly neutralizing antibody responses",
+    goal="define biologically plausible and conserved epitopes on spike, anticipate escape routes, and ensure designed antibodies/nanobodies target functionally constrained regions across variants",
+    role="curate and interpret virological/immunological data, define design constraints and target epitopes, map variant landscapes, and guide selection of fitness-constrained regions for broad neutralization",
+)
 
-2. **Agent(
-    title="Virologist",
-    expertise="viral evolution and spike protein mutations",
-    goal="understand the implications of spike protein variants on antibody binding",
-    role="provide insights into the current and emerging variants and validate computational predictions with biological assays"
-)**
-
-3. **Agent(
-    title="Antibody Engineer",
-    expertise="antibody and nanobody design and optimization",
-    goal="engineer antibodies or nanobodies with enhanced binding affinity and broad reactivity",
-    role="apply protein engineering techniques to develop candidates with desired properties and guide experimental validation"
-)**
-
-These team members will be crucial for integrating computational predictions with biological insights and engineering expertise to design effective antibodies or nanobodies.
+Agent(
+    title="Machine Learning for Protein Design Specialist",
+    expertise="large-scale protein representation learning, multimodal ML on sequence–structure–phenotype data, and active learning/optimization for protein engineering",
+    goal="build and train ML models that predict binding and breadth, integrate multi-variant data, and drive iterative design cycles for improved antibodies/nanobodies",
+    role="develop ML architectures (e.g., protein language models, graph neural networks, sequence-to-function predictors), design active learning strategies with in silico/experimental feedback, and implement multi-objective optimization for affinity, breadth, and developability",
+)
 

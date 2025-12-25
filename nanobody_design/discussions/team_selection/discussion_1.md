@@ -18,28 +18,24 @@ Principal Investigator, please provide your response to the agenda.
 
 ## Principal Investigator
 
-To tackle the challenge of developing antibodies or nanobodies for the newest variant of the SARS-CoV-2 spike protein, I propose assembling a team with diverse expertise in artificial intelligence, structural biology, and immunology. Here are the three scientists I would like to invite to discuss and create our design approach:
+Agent(
+    title="Computational Antibody Engineer",
+    expertise="structure-based antibody and nanobody design, protein–protein docking, deep generative models for antibody sequences (e.g., IgLM, AbLang, ProteinMPNN variants), and in silico affinity maturation against viral glycoproteins including SARS-CoV-2 spike",
+    goal="develop and implement a machine-learning–driven pipeline to design and optimize antibody/nanobody sequences targeting conserved and variant-tolerant epitopes on the SARS-CoV-2 spike protein",
+    role="own the end-to-end computational design workflow: curate antibody–spike training data, define paratope/epitope representations, run generative models and docking/MD refinements, and deliver prioritized, diversity-aware candidate designs with predicted cross-variant activity",
+)
 
-1. **Agent**(
-   - title="Computational Biologist",
-   - expertise="protein structure prediction and modeling",
-   - goal="develop and refine predictive models for protein-antibody interactions",
-   - role="provide insights into molecular dynamics and structural constraints impacting antibody design",
-   )
+Agent(
+    title="Structural Virologist",
+    expertise="coronavirus spike protein biology, structural virology (cryo-EM, X-ray), antigenic mapping, epitope conservation analysis across SARS-CoV-2 variants and related sarbecoviruses, and mechanisms of viral escape from neutralizing antibodies",
+    goal="identify structurally conserved, functionally constrained epitopes on the latest SARS-CoV-2 spike variant and map them to historical and circulating variants to guide design toward broadly neutralizing targets",
+    role="define design-relevant structural constraints and epitope regions, provide curated and annotated structural datasets (PDB/EMDB), advise on glycan shielding and conformational states (open/closed RBD, S1/S2), and interpret how sequence/structural changes in new variants may impact binding and escape",
+)
 
-2. **Agent**(
-   - title="AI/ML Specialist",
-   - expertise="machine learning algorithms and data analysis",
-   - goal="implement and optimize machine learning models for antibody discovery",
-   - role="lead the development of AI models to predict broadly neutralizing antibodies against SARS-CoV-2 variants",
-   )
-
-3. **Agent**(
-   - title="Immunologist",
-   - expertise="antibody response and epitope mapping",
-   - goal="identify key antigenic sites on the SARS-CoV-2 spike protein",
-   - role="guide the selection of target epitopes and provide biological insights into immune evasion mechanisms",
-   )
-
-These team members will bring critical knowledge and skills needed to effectively design and optimize antibodies or nanobodies with broad-spectrum activity. This collaboration will allow us to integrate computational predictions with biological validation, enhancing the potential for impactful scientific outcomes.
+Agent(
+    title="Machine Learning for Protein Modeling Specialist",
+    expertise="large protein language models (e.g., ESM, ProtT5), structure prediction (AlphaFold2, OpenFold, RFdiffusion), multi-task learning for binding/neutralization prediction, and uncertainty-aware ML model development for out-of-distribution viral variants",
+    goal="build robust predictive models that score designed antibodies/nanobodies for binding, stability, and cross-variant robustness, and integrate these models with generative design to iteratively improve candidates",
+    role="design the ML strategy: select and fine-tune foundational protein models, build epitope-conditioned sequence generators, develop cross-variant binding/escape risk predictors, calibrate model uncertainty, and orchestrate active-learning loops that prioritize informative designs for downstream experimental testing",
+)
 
