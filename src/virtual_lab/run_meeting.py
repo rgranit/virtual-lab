@@ -1,5 +1,6 @@
 """Runs a meeting with LLM agents."""
 
+import json
 import time
 from pathlib import Path
 from typing import Literal
@@ -8,7 +9,7 @@ from openai import OpenAI
 from tqdm import trange, tqdm
 
 from virtual_lab.agent import Agent
-from virtual_lab.constants import CONSISTENT_TEMPERATURE, PUBMED_TOOL_DESCRIPTION
+from virtual_lab.constants import CONSISTENT_TEMPERATURE, PUBMED_TOOL_DESCRIPTION, PUBMED_TOOL_NAME
 from virtual_lab.prompts import (
     individual_meeting_agent_prompt,
     individual_meeting_critic_prompt,
@@ -24,10 +25,9 @@ from virtual_lab.utils import (
     convert_messages_to_discussion,
     count_discussion_tokens,
     count_tokens,
-    get_messages,
     get_summary,
     print_cost_and_time,
-    run_tools,
+    run_pubmed_search,
     save_meeting,
 )
 
@@ -101,36 +101,22 @@ def run_meeting(
         team = [team_member] + [SCIENTIFIC_CRITIC]
 
     # Set up tools
-    assistant_params = {"tools": [PUBMED_TOOL_DESCRIPTION]} if pubmed_search else {}
+    tools = [PUBMED_TOOL_DESCRIPTION] if pubmed_search else None
 
-    # Set up the assistants
-    agent_to_assistant = {
-        agent: client.beta.assistants.create(
-            name=agent.title,
-            instructions=agent.prompt,
-            model=agent.model,
-            **assistant_params,
-        )
-        for agent in team
-    }
-
-    # Map assistant IDs to agents
-    assistant_id_to_title = {
-        assistant.id: agent.title for agent, assistant in agent_to_assistant.items()
-    }
+    # Map agent titles for discussion conversion
+    agent_title_to_title = {agent.title: agent.title for agent in team}
 
     # Set up tool token count
     tool_token_count = 0
 
-    # Set up the thread
-    thread = client.beta.threads.create()
+    # Set up conversation history (list of messages)
+    messages = []
 
     # Initial prompt for team meeting
     if meeting_type == "team":
-        client.beta.threads.messages.create(
-            thread_id=thread.id,
-            role="user",
-            content=team_meeting_start_prompt(
+        messages.append({
+            "role": "user",
+            "content": team_meeting_start_prompt(
                 team_lead=team_lead,
                 team_members=team_members,
                 agenda=agenda,
@@ -140,7 +126,7 @@ def run_meeting(
                 contexts=contexts,
                 num_rounds=num_rounds,
             ),
-        )
+        })
 
     # Loop through rounds
     for round_index in trange(num_rounds + 1, desc="Rounds (+ Final Round)"):
@@ -195,59 +181,108 @@ def run_meeting(
                         )
 
             # Create message from user to agent
-            client.beta.threads.messages.create(
-                thread_id=thread.id,
-                role="user",
-                content=prompt,
-            )
+            messages.append({
+                "role": "user",
+                "content": prompt,
+            })
 
-            # Run the agent
-            run = client.beta.threads.runs.create_and_poll(
-                thread_id=thread.id,
-                assistant_id=agent_to_assistant[agent].id,
-                model=agent.model,
-                temperature=temperature,
-            )
+            # Prepare messages for this agent (include system message)
+            agent_messages = [
+                {"role": "system", "content": agent.prompt},
+            ] + messages
 
-            # Check if run requires action
-            if run.status == "requires_action":
-                # Run the tools
-                tool_outputs = run_tools(run=run)
-
-                # Update tool token count
-                tool_token_count += sum(
-                    count_tokens(tool_output["output"]) for tool_output in tool_outputs
+            # Run the agent with function calling support
+            while True:
+                response = client.chat.completions.create(
+                    model=agent.model,
+                    messages=agent_messages,
+                    temperature=temperature,
+                    tools=tools,
                 )
 
-                # Submit the tool outputs
-                run = client.beta.threads.runs.submit_tool_outputs_and_poll(
-                    thread_id=thread.id, run_id=run.id, tool_outputs=tool_outputs
-                )
+                # Add assistant response to messages
+                assistant_message = response.choices[0].message
 
-                # Add tool outputs to the thread so it's visible for later rounds
-                client.beta.threads.messages.create(
-                    thread_id=thread.id,
-                    role="user",
-                    content="Tool Output:\n\n"
-                    + "\n\n".join(
-                        tool_output["output"] for tool_output in tool_outputs
-                    ),
-                )
+                # Check if function calling is required
+                if assistant_message.tool_calls:
+                    # Add assistant message with tool calls to conversation
+                    assistant_message_dict = {
+                        "role": "assistant",
+                        "content": assistant_message.content or "",
+                        "tool_calls": [
+                            {
+                                "id": tool_call.id,
+                                "type": "function",
+                                "function": {
+                                    "name": tool_call.function.name,
+                                    "arguments": tool_call.function.arguments,
+                                },
+                            }
+                            for tool_call in assistant_message.tool_calls
+                        ],
+                        "agent_title": agent.title,  # Track which agent responded
+                    }
+                    agent_messages.append(assistant_message_dict)
+                    
+                    # Also add to main messages for discussion tracking
+                    messages.append({
+                        "role": "assistant",
+                        "content": assistant_message.content or "",
+                        "agent_title": agent.title,
+                    })
 
-            # Check run status
-            if run.status != "completed":
-                raise ValueError(f"Run failed: {run.status}")
+                    # Run the tools
+                    tool_outputs = []
+                    for tool_call in assistant_message.tool_calls:
+                        if tool_call.function.name == PUBMED_TOOL_NAME:
+                            # Extract the query from the tool arguments
+                            args_dict = json.loads(tool_call.function.arguments)
+                            # Run the tool
+                            output = run_pubmed_search(**args_dict)
+                            tool_outputs.append({
+                                "tool_call_id": tool_call.id,
+                                "output": output,
+                            })
+                        else:
+                            raise ValueError(f"Unknown tool: {tool_call.function.name}")
+
+                    # Update tool token count
+                    tool_token_count += sum(
+                        count_tokens(tool_output["output"]) for tool_output in tool_outputs
+                    )
+
+                    # Add tool outputs to messages (Chat Completions API format)
+                    for tool_output in tool_outputs:
+                        agent_messages.append({
+                            "role": "tool",
+                            "tool_call_id": tool_output["tool_call_id"],
+                            "content": tool_output["output"],
+                        })
+
+                    # Add tool outputs to main conversation for later rounds
+                    messages.append({
+                        "role": "user",
+                        "content": "Tool Output:\n\n"
+                        + "\n\n".join(
+                            tool_output["output"] for tool_output in tool_outputs
+                        ),
+                    })
+                else:
+                    # No function calling needed, add response to main conversation
+                    messages.append({
+                        "role": "assistant",
+                        "content": assistant_message.content or "",
+                        "agent_title": agent.title,  # Track which agent responded
+                    })
+                    break
 
             # If final round, only team lead or team member responds
             if round_index == num_rounds:
                 break
 
-    # Get messages from the discussion
-    messages = get_messages(client=client, thread_id=thread.id)
-
     # Convert messages to discussion format
     discussion = convert_messages_to_discussion(
-        messages=messages, assistant_id_to_title=assistant_id_to_title
+        messages=messages, agent_title_to_title=agent_title_to_title
     )
 
     # Count discussion tokens
