@@ -51,4 +51,4 @@ pip install -e .
 
 ## OpenAI API Key
 
-The Virtual Lab currently uses GPT-4o from OpenAI. Save your OpenAI API key as the environment variable `OPENAI_API_KEY`. For example, add `export OPENAI_API_KEY=<your_key>` to your `.bashrc` or `.bash_profile`.
+This version of Virtual Lab currently supports chatGPT5 from OpenAI. Save your OpenAI API key as the environment variable `OPENAI_API_KEY`. For example, add `export OPENAI_API_KEY=<your_key>` to your `.bashrc` or `.bash_profile`.
