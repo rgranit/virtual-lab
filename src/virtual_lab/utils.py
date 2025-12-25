@@ -7,7 +7,6 @@ from pathlib import Path
 import requests
 import tiktoken
 from openai import AsyncOpenAI, OpenAI
-from openai.types.beta.threads.run import Run
 
 from virtual_lab.constants import (
     DEFAULT_FINETUNING_EPOCHS,
@@ -141,123 +140,10 @@ def run_pubmed_search(
     return combined_text
 
 
-def run_tools(run: Run) -> list[dict[str, str]]:
-    """Runs the tools in a required action.
-
-    :param run: The run to run tools for.
-    :return: A list of tool outputs.
-    """
-    # Define the list to store tool outputs
-    tool_outputs = []
-
-    # Loop through each tool in the required action and run it
-    for tool in run.required_action.submit_tool_outputs.tool_calls:
-        if tool.function.name == PUBMED_TOOL_NAME:
-            # Extract the query from the tool arguments
-            args_dict = json.loads(tool.function.arguments)
-
-            # Run the tool and append the output to the list of tool outputs
-            tool_outputs.append(
-                {
-                    "tool_call_id": tool.id,
-                    "output": run_pubmed_search(**args_dict),
-                }
-            )
-        else:
-            raise ValueError(f"Unknown tool: {tool.function.name}")
-
-    return tool_outputs
 
 
-def get_messages(client: OpenAI, thread_id: str) -> list[dict]:
-    """Gets messages from a thread.
-
-    :param client: The OpenAI client.
-    :param thread_id: The ID of the thread to get messages from.
-    :return: A list of messages.
-    """
-    # Set up
-    messages = []
-    last_message = None
-    params = {
-        "thread_id": thread_id,
-        "limit": 100,
-        "order": "asc",
-    }
-
-    # Get all messages from the thread page by page
-    while True:
-        # Set up params
-        if last_message is not None:
-            params["after"] = last_message["id"]
-        elif "after" in params:
-            del params["after"]
-
-        # Get messages
-        new_messages = [
-            message.to_dict() for message in client.beta.threads.messages.list(**params)
-        ]
-
-        # Append new messages
-        messages += new_messages
-
-        # Break if no more messages
-        if len(new_messages) < params["limit"]:
-            break
-
-        # Get last message
-        last_message = messages[-1]
-
-    # Verify all message content is length 1
-    assert all(len(message["content"]) == 1 for message in messages)
-
-    return messages
 
 
-async def async_get_messages(client: AsyncOpenAI, thread_id: str) -> list[dict]:
-    """Gets messages from a thread.
-
-    :param client: The async OpenAI client.
-    :param thread_id: The ID of the thread to get messages from.
-    :return: A list of messages.
-    """
-    # Set up
-    messages = []
-    last_message = None
-    params = {
-        "thread_id": thread_id,
-        "limit": 100,
-        "order": "asc",
-    }
-
-    # Get all messages from the thread page by page
-    while True:
-        # Set up params
-        if last_message is not None:
-            params["after"] = last_message["id"]
-        elif "after" in params:
-            del params["after"]
-
-        # Get messages
-        new_messages = [
-            message.to_dict()
-            async for message in client.beta.threads.messages.list(**params)
-        ]
-
-        # Append new messages
-        messages += new_messages
-
-        # Break if no more messages
-        if len(new_messages) < params["limit"]:
-            break
-
-        # Get last message
-        last_message = messages[-1]
-
-    # Verify all message content is length 1
-    assert all(len(message["content"]) == 1 for message in messages)
-
-    return messages
 
 
 def count_tokens(string: str, encoding_name: str = "cl100k_base") -> int:
@@ -387,25 +273,38 @@ def compute_finetuning_cost(
 
 
 def convert_messages_to_discussion(
-    messages: list[dict], assistant_id_to_title: dict[str, str]
+    messages: list[dict], agent_title_to_title: dict[str, str]
 ) -> list[dict[str, str]]:
-    """Converts OpenAI messages into discussion format (list of message dictionaries).
+    """Converts Chat Completions messages into discussion format (list of message dictionaries).
 
-    :param messages: The messages to convert.
-    :param assistant_id_to_title: A dictionary mapping assistant IDs to titles.
+    :param messages: The messages to convert (from Chat Completions API).
+    :param agent_title_to_title: A dictionary mapping agent titles to titles (for consistency).
     :return: The discussion format (list of message dictionaries).
     """
-    return [
-        {
-            "agent": (
-                assistant_id_to_title[message["assistant_id"]]
-                if message["assistant_id"] is not None
-                else "User"
-            ),
-            "message": message["content"][0]["text"]["value"],
-        }
-        for message in messages
-    ]
+    discussion = []
+    
+    for message in messages:
+        role = message.get("role")
+        content = message.get("content", "")
+        
+        # Skip system messages and tool messages
+        if role == "system" or role == "tool":
+            continue
+        
+        if role == "assistant":
+            # Get agent title from message metadata, fallback to "Assistant"
+            agent_title = message.get("agent_title", "Assistant")
+            discussion.append({
+                "agent": agent_title,
+                "message": content,
+            })
+        elif role == "user":
+            discussion.append({
+                "agent": "User",
+                "message": content,
+            })
+    
+    return discussion
 
 
 def get_summary(discussion: list[dict[str, str]]) -> str:
