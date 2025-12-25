@@ -10,8 +10,9 @@ num_iterations = 5
 num_rounds = 3
 
 # Models
-model = "gpt-4o-2024-08-06"
+model = "gpt-5.1"
 model_mini = "gpt-4o-mini-2024-07-18"
+
 
 # Discussion paths
 discussions_dir = Path("discussions")
